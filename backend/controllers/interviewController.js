@@ -1,25 +1,25 @@
-const InterviewSession = require('../models/InterviewSession');
-const Resume = require('../models/Resume');
-const { callAI, extractJSON } = require('../services/aiService');
+const InterviewSession = require("../models/InterviewSession");
+const Resume = require("../models/Resume");
+const { callAI, extractJSON } = require("../services/aiService");
 const {
   buildFirstQuestionPrompt,
   buildNextQuestionPrompt,
   buildSummaryPrompt,
-} = require('../prompts/interviewPrompt');
+} = require("../prompts/interviewPrompt");
 
 const TOTAL_QUESTIONS = 5;
 
 const aiErrorMessage = (error) =>
-  error.message === 'AI_BAD_FORMAT'
-    ? 'The AI gave an unexpected response — please try again.'
-    : error.message || 'Something went wrong';
+  error.message === "AI_BAD_FORMAT"
+    ? "The AI gave an unexpected response — please try again."
+    : error.message || "Something went wrong";
 
 // Start a new interview session
 const startInterview = async (req, res) => {
   try {
     const { role, useResume } = req.body;
     if (!role) {
-      return res.status(400).json({ message: 'Please provide a role' });
+      return res.status(400).json({ message: "Please provide a role" });
     }
 
     const previousAttempts = await InterviewSession.countDocuments({
@@ -29,9 +29,16 @@ const startInterview = async (req, res) => {
 
     let resumeText = null;
     if (useResume) {
-      const resume = await Resume.findOne({ userId: req.user._id }).sort({ createdAt: -1 });
+      const resume = await Resume.findOne({ userId: req.user._id }).sort({
+        createdAt: -1,
+      });
       if (!resume) {
-        return res.status(400).json({ message: 'No resume found. Please upload a resume first, or start without one.' });
+        return res
+          .status(400)
+          .json({
+            message:
+              "No resume found. Please upload a resume first, or start without one.",
+          });
       }
       resumeText = resume.rawText;
     }
@@ -43,7 +50,7 @@ const startInterview = async (req, res) => {
     const session = await InterviewSession.create({
       userId: req.user._id,
       role,
-      questions: [{ question: parsed.question, answer: '', feedback: '' }],
+      questions: [{ question: parsed.question, answer: "", feedback: "" }],
       attemptNumber: previousAttempts + 1,
       usedResume: !!useResume,
     });
@@ -51,7 +58,9 @@ const startInterview = async (req, res) => {
     res.status(201).json(session);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to start interview' });
+    res
+      .status(500)
+      .json({ message: aiErrorMessage(error) || "Failed to start interview" });
   }
 };
 
@@ -60,49 +69,86 @@ const submitAnswer = async (req, res) => {
   try {
     const { answer } = req.body;
     if (!answer) {
-      return res.status(400).json({ message: 'Please provide an answer' });
+      return res.status(400).json({ message: "Please provide an answer" });
     }
 
-    const session = await InterviewSession.findOne({ _id: req.params.id, userId: req.user._id });
+    const session = await InterviewSession.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
     if (!session) {
-      return res.status(404).json({ message: 'Interview session not found' });
+      return res.status(404).json({ message: "Interview session not found" });
     }
-    if (session.status === 'completed') {
-      return res.status(400).json({ message: 'This interview session is already completed' });
+    if (session.status === "completed") {
+      return res
+        .status(400)
+        .json({ message: "This interview session is already completed" });
     }
 
     const currentIndex = session.currentQuestionIndex;
+
+    const claimed = await InterviewSession.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user._id,
+        currentQuestionIndex: currentIndex,
+        [`questions.${currentIndex}.answer`]: "",
+      },
+      { $set: { [`questions.${currentIndex}.answer`]: answer } },
+      { returnDocument: 'after' }
+    );
+
+    if (!claimed) {
+      return res
+        .status(409)
+        .json({ message: "This question was already answered" });
+    }
+
     session.questions[currentIndex].answer = answer;
 
     if (currentIndex + 1 >= TOTAL_QUESTIONS) {
       // This was the last question — no next question needed, frontend should call /complete next
-      session.questions[currentIndex].feedback = 'Final answer recorded. Interview ready to be completed.';
+      session.questions[currentIndex].feedback =
+        "Final answer recorded. Interview ready to be completed.";
       await session.save();
       return res.json({ session, isLastQuestion: true });
     }
 
-    const prompt = buildNextQuestionPrompt(session.role, session.questions, answer);
+    const prompt = buildNextQuestionPrompt(
+      session.role,
+      session.questions,
+      answer,
+    );
     const rawResponse = await callAI(prompt);
     const parsed = extractJSON(rawResponse);
 
     session.questions[currentIndex].feedback = parsed.feedback;
-    session.questions.push({ question: parsed.nextQuestion, answer: '', feedback: '' });
+    session.questions.push({
+      question: parsed.nextQuestion,
+      answer: "",
+      feedback: "",
+    });
     session.currentQuestionIndex += 1;
 
     await session.save();
     res.json({ session, isLastQuestion: false });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to submit answer' });
+    res
+      .status(500)
+      .json({ message: aiErrorMessage(error) || "Failed to submit answer" });
   }
 };
 
 // Finish the interview, generate overall score + summary + weak topics
 const completeInterview = async (req, res) => {
   try {
-    const session = await InterviewSession.findOne({ _id: req.params.id, userId: req.user._id });
+    const session = await InterviewSession.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
     if (!session) {
-      return res.status(404).json({ message: 'Interview session not found' });
+      return res.status(404).json({ message: "Interview session not found" });
     }
 
     const prompt = buildSummaryPrompt(session.role, session.questions);
@@ -112,27 +158,36 @@ const completeInterview = async (req, res) => {
     session.score = parsed.score;
     session.overallSummary = parsed.overallSummary;
     session.weakTopics = parsed.weakTopics;
-    session.status = 'completed';
+    session.status = "completed";
 
     await session.save();
     res.json(session);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to complete interview' });
+    res
+      .status(500)
+      .json({
+        message: aiErrorMessage(error) || "Failed to complete interview",
+      });
   }
 };
 
 // Get a single interview session by id (full details, including all Q&A)
 const getInterviewById = async (req, res) => {
   try {
-    const session = await InterviewSession.findOne({ _id: req.params.id, userId: req.user._id });
+    const session = await InterviewSession.findOne({
+      _id: req.params.id,
+      userId: req.user._id,
+    });
     if (!session) {
-      return res.status(404).json({ message: 'Interview session not found' });
+      return res.status(404).json({ message: "Interview session not found" });
     }
     res.json(session);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: error.message || 'Failed to fetch interview session' });
+    res
+      .status(500)
+      .json({ message: error.message || "Failed to fetch interview session" });
   }
 };
 
@@ -140,14 +195,21 @@ const getInterviewById = async (req, res) => {
 const getAllInterviews = async (req, res) => {
   try {
     const sessions = await InterviewSession.find({ userId: req.user._id })
-      .select('role status score attemptNumber usedResume createdAt')
+      .select("role status score attemptNumber usedResume createdAt")
       .sort({ createdAt: -1 });
     res.json(sessions);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: error.message || 'Failed to fetch interview sessions' });
+    res
+      .status(500)
+      .json({ message: error.message || "Failed to fetch interview sessions" });
   }
 };
 
-
-module.exports = { startInterview, submitAnswer, completeInterview, getInterviewById, getAllInterviews };
+module.exports = {
+  startInterview,
+  submitAnswer,
+  completeInterview,
+  getInterviewById,
+  getAllInterviews,
+};

@@ -62,7 +62,7 @@ export default function Signup() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                placeholder="Anushka Sharma"
+                placeholder="Full Name"
                 className="w-full border-0 border-b border-line bg-transparent py-2 px-0.5 text-[15px] text-ink outline-none focus:border-ink transition-colors"
               />
             </div>

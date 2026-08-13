@@ -12,7 +12,9 @@ const aiErrorMessage = (error) =>
 const getQuestions = async (req, res) => {
   try {
     const { topic, difficulty } = req.query;
-    const filter = {};
+    const filter = {
+      $or: [{ userId: null }, { userId: req.user._id }],
+    };
     if (topic) filter.topic = topic.toLowerCase();
     if (difficulty) filter.difficulty = difficulty;
 
@@ -128,6 +130,7 @@ const addToBank = async (req, res) => {
       question,
       idealAnswer,
       source: 'ai-generated',
+      userId: req.user._id, // personal addition — only visible to this user
     });
 
     res.status(201).json(bankQuestion);

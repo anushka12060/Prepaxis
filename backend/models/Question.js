@@ -26,6 +26,11 @@ const questionBankSchema = new mongoose.Schema(
       enum: ['seeded', 'ai-generated'],
       default: 'seeded',
     },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null, // null = official/curated bank question, visible to everyone
+    },
   },
   { timestamps: true }
 );

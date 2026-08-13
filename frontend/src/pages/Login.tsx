@@ -78,6 +78,17 @@ export default function Login() {
             <div className="h-[76px]" />
 
             <button
+              type="button"
+              onClick={() => {
+                setEmail('test1@example.com');
+                setPassword('password123');
+              }}
+              className="w-full border border-line text-ink font-display font-medium text-sm py-2.5 rounded mb-3 hover:bg-ink/5 transition"
+            >
+              Fill demo credentials
+            </button>
+
+            <button
               type="submit"
               disabled={loading}
               className="w-full bg-ink text-paper font-display font-medium text-sm py-3 rounded disabled:opacity-50 hover:opacity-90 transition"

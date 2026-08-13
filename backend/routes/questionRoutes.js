@@ -16,6 +16,6 @@ router.post('/generate', protect, aiRateLimiter, generateQuestion);
 router.post('/save', protect, saveQuestion);
 router.delete('/save/:id', protect, unsaveQuestion);
 router.get('/saved', protect, getSavedQuestions);
-router.post('/bank', protect, adminOnly, addToBank);
+router.post('/bank', protect, addToBank);
 
 module.exports = router;
