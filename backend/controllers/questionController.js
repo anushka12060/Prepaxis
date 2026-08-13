@@ -60,7 +60,10 @@ const saveQuestion = async (req, res) => {
     }
 
     if (questionId) {
-      const exists = await Question.findById(questionId);
+      const exists = await Question.findOne({
+        _id: questionId,
+        $or: [{ userId: null }, { userId: req.user._id }],
+      });
       if (!exists) {
         return res.status(404).json({ message: 'Question not found' });
       }
