@@ -9,6 +9,11 @@ const {
 
 const TOTAL_QUESTIONS = 5;
 
+const aiErrorMessage = (error) =>
+  error.message === 'AI_BAD_FORMAT'
+    ? 'The AI gave an unexpected response — please try again.'
+    : error.message || 'Something went wrong';
+
 // Start a new interview session
 const startInterview = async (req, res) => {
   try {
@@ -46,7 +51,7 @@ const startInterview = async (req, res) => {
     res.status(201).json(session);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: error.message || 'Failed to start interview' });
+    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to start interview' });
   }
 };
 
@@ -88,7 +93,7 @@ const submitAnswer = async (req, res) => {
     res.json({ session, isLastQuestion: false });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: error.message || 'Failed to submit answer' });
+    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to submit answer' });
   }
 };
 
@@ -113,7 +118,7 @@ const completeInterview = async (req, res) => {
     res.json(session);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: error.message || 'Failed to complete interview' });
+    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to complete interview' });
   }
 };
 

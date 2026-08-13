@@ -3,6 +3,11 @@ const SavedQuestion = require('../models/SavedQuestion');
 const { callAI, extractJSON } = require('../services/aiService');
 const { buildQuestionGenerationPrompt } = require('../prompts/questionPrompt');
 
+const aiErrorMessage = (error) =>
+  error.message === 'AI_BAD_FORMAT'
+    ? 'The AI gave an unexpected response — please try again.'
+    : error.message || 'Something went wrong';
+
 // Browse/filter the question bank
 const getQuestions = async (req, res) => {
   try {
@@ -39,7 +44,7 @@ const generateQuestion = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: error.message || 'Failed to generate question' });
+    res.status(500).json({ message: aiErrorMessage(error) || 'Failed to generate question' });
   }
 };
 

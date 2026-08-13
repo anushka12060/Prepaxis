@@ -57,11 +57,18 @@ async function callAI(prompt, maxRetries = 1) {
 }
 
 function extractJSON(rawText) {
-  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  const withoutFences = rawText.replace(/```json\s*|```/g, "");
+
+  const jsonMatch = withoutFences.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("AI response did not contain valid JSON");
+    throw new Error("AI_BAD_FORMAT");
   }
-  return JSON.parse(jsonMatch[0]);
+
+  try {
+    return JSON.parse(jsonMatch[0]);
+  } catch {
+    throw new Error("AI_BAD_FORMAT");
+  }
 }
 
 module.exports = { callAI, extractJSON };

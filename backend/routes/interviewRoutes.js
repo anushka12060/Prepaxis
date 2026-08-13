@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
+const aiRateLimiter = require('../middleware/aiRateLimiter');
 const {
   startInterview,
   submitAnswer,
@@ -9,10 +10,10 @@ const {
   getAllInterviews,
 } = require('../controllers/interviewController');
 
-router.post('/start', protect, startInterview);
+router.post('/start', protect, aiRateLimiter, startInterview);
 router.get('/', protect, getAllInterviews);
 router.get('/:id', protect, getInterviewById);
-router.post('/:id/answer', protect, submitAnswer);
-router.post('/:id/complete', protect, completeInterview);
+router.post('/:id/answer', protect, aiRateLimiter, submitAnswer);
+router.post('/:id/complete', protect, aiRateLimiter, completeInterview);
 
 module.exports = router;
